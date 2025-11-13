@@ -10,9 +10,9 @@
   "forum": "zxg6601zoc",
   "number": 1371,
   "title": "...",
-  "abstract": "...",                 # ★ 新增
-  "decision": "Accept|Reject|Withdrawn|null",  # ★ 新增（尽力从事件中判定）
-  "per_reviewer": {
+  "abstract": "...",                 # 摘要
+  "decision": "Accept|Reject|Withdrawn|null",  # 尽力从事件中判定
+  "rebuttal_chain": {                # ★ 原 per_reviewer
     "Reviewer_XXXX": [
       {
         "time": "...ISO...",
@@ -29,7 +29,7 @@
     ],
     "Reviewer_YYYY": [ ... ]
   },
-  "global": [
+  "other_review": [                  # ★ 原 global
     # 不属于任何具体 reviewer 链的事件：meta_review, decision,
     # 对整个 forum 的 general comment 等
   ]
@@ -181,7 +181,7 @@ def get_review_versions(
     evt_basic: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     """
-    对于一条“评审 note”（原始 reply 已经被 classify_reply 处理成 evt_basic），
+    对于一条“评审 note”（原始 reply 已被 classify_reply 处理成 evt_basic），
     构造完整版本序列 v1, v2, ...
 
     - v1：用原始 reply 的内容（evt_basic），时间 = 原始 cdate
@@ -321,7 +321,7 @@ def build_per_reviewer_chains(
                 per_reviewer[rid] = []
             per_reviewer[rid].append(e)
 
-    # 3) 对每个 reviewer 的链按时间排序
+    # 3) 对每个 reviewer 的链按时间排序（若想在同秒内让 review_version 更靠前，可改排序键）
     for rid, evts in per_reviewer.items():
         evts.sort(key=lambda x: x.get("time_ms") or 0)
 
@@ -342,7 +342,7 @@ def build_per_reviewer_chains(
     return per_reviewer, global_events
 
 
-# ---------- 新增：决策解析 ----------
+# ---------- 决策解析 ----------
 def _collect_strings_from_content(content: Dict[str, Any]) -> List[str]:
     out = []
     if not isinstance(content, dict):
@@ -354,7 +354,6 @@ def _collect_strings_from_content(content: Dict[str, Any]) -> List[str]:
                 out.append(val)
         elif isinstance(v, str):
             out.append(v)
-        # 保守处理：列表中的字符串
         elif isinstance(v, list):
             for it in v:
                 if isinstance(it, str):
@@ -370,7 +369,7 @@ def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
     返回：
       - "Withdrawn" | "Accept" | "Reject" | None
     """
-    # 1) 撤稿优先：看任何事件 content 是否包含 withdrawal_confirmation 或关键词
+    # 1) 撤稿优先
     for e in events:
         c = e.get("content") or {}
         if "withdrawal_confirmation" in c:
@@ -384,7 +383,6 @@ def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
     for e in events:
         if e.get("event_type") == "decision":
             texts += _collect_strings_from_content(e.get("content") or {})
-    # 若决策事件里没有，再全表扫描可能含“venue/decision/recommendation”的字段
     if not texts:
         for e in events:
             c = e.get("content") or {}
@@ -399,10 +397,8 @@ def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
     if not blob.strip():
         return None
 
-    # Accept 的常见标记：accept / oral / spotlight / poster
     if re.search(r"\b(accept|oral|spotlight|poster)\b", blob):
         return "Accept"
-    # Reject 的常见标记
     if re.search(r"\b(reject|desk\s*reject)\b", blob):
         return "Reject"
 
@@ -428,7 +424,7 @@ def main():
         forum_id = sub.forum
         number = getattr(sub, "number", None)
         title = extract_title_from_content(sub.content or {})
-        abstract = extract_abstract_from_content(sub.content or {})  # ★ 新增
+        abstract = extract_abstract_from_content(sub.content or {})
 
         raw_replies = sub.details.get("replies", []) or []
         events: List[Dict[str, Any]] = []
@@ -437,7 +433,7 @@ def main():
         for r in raw_replies:
             evt_basic = classify_reply(r)
 
-            # 1) 评审：展开为 review_version(v1,v2,...) 序列
+            # 1) 评审：展开为 review_version(v1,v2,...)
             if evt_basic["type"] == "review":
                 versions = get_review_versions(client, evt_basic)
 
@@ -475,10 +471,10 @@ def main():
                 "forum": forum_id,
                 "number": number,
                 "title": title,
-                "abstract": abstract,               # ★ 新增
-                "decision": None,                   # ★ 新增
-                "per_reviewer": {},
-                "global": [],
+                "abstract": abstract,
+                "decision": None,
+                "rebuttal_chain": {},   # ★ 改名
+                "other_review": [],     # ★ 改名
             }
         else:
             # 先整体按时间排序（便于 debug）
@@ -487,17 +483,17 @@ def main():
             # 构造 per_reviewer 链 + global 事件
             per_reviewer, global_events = build_per_reviewer_chains(events)
 
-            # 依据所有事件推断接收结果（优先从 decision / withdrawal）
+            # 依据所有事件推断接收结果
             decision = detect_decision_from_events(events)
 
             record = {
                 "forum": forum_id,
                 "number": number,
                 "title": title,
-                "abstract": abstract,               # ★ 新增
-                "decision": decision,               # ★ 新增
-                "per_reviewer": per_reviewer,
-                "global": global_events,
+                "abstract": abstract,
+                "decision": decision,
+                "rebuttal_chain": per_reviewer,   # ★ 改名
+                "other_review": global_events,    # ★ 改名
             }
 
         out_path = os.path.join(OUT_DIR, f"{forum_id}.json")
