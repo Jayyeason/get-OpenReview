@@ -1,0 +1,512 @@
+{
+  "02DCEU6vSU": {
+    "paper_id": "02DCEU6vSU",
+    "reviews": [
+      {
+        "reviewer_id": "reviewer_3",
+        "strictness": 3,
+        "review": {
+          "summary": {
+            "value": "Error: Connection error."
+          },
+          "strengths": {
+            "value": ""
+          },
+          "weaknesses": {
+            "value": ""
+          },
+          "questions": {
+            "value": ""
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_5",
+        "strictness": 5,
+        "review": {
+          "summary": {
+            "value": "Error: Connection error."
+          },
+          "strengths": {
+            "value": ""
+          },
+          "weaknesses": {
+            "value": ""
+          },
+          "questions": {
+            "value": ""
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_1",
+        "strictness": 1,
+        "review": {
+          "summary": {
+            "value": "Error: Connection error."
+          },
+          "strengths": {
+            "value": ""
+          },
+          "weaknesses": {
+            "value": ""
+          },
+          "questions": {
+            "value": ""
+          }
+        }
+      }
+    ]
+  },
+  "02kZwCo0C3": {
+    "paper_id": "02kZwCo0C3",
+    "reviews": [
+      {
+        "reviewer_id": "reviewer_3",
+        "strictness": 3,
+        "review": {
+          "summary": {
+            "value": "This paper proposes SAIL, a novel online reinforcement learning from human feedback (RLHF) framework for aligning large language models (LLMs). SAIL addresses distribution shift, computational inefficiency, and reliance on preference oracles by formalizing online alignment as a bilevel optimization problem and reducing it to a computationally efficient single-level method. The approach generates new samples iteratively, achieving significant performance gains over state-of-the-art methods."
+          },
+          "strengths": {
+            "value": "Originality: SAIL introduces a unified mathematical framework for online RLHF, combining bilevel optimization with practical computational efficiency. Quality: The paper presents comprehensive experiments demonstrating substantial improvements in win rate and reward metrics. Clarity: The problem formulation and key contributions are well-articulated, with clear motivation for addressing distribution shift and preference oracle limitations. Significance: The work tackles critical challenges in LLM alignment, with potential real-world impact for continuous model adaptation."
+          },
+          "weaknesses": {
+            "value": "Theoretical foundation: The reduction from bilevel to single-level optimization lacks rigorous mathematical justification, particularly the assumptions enabling this transformation. Experimental validation: The paper references a figure with incomplete content (Figure 1) and does not provide ablation studies to isolate the contribution of the self-improvement mechanism. Comparison: Key baselines (e.g., PARL) are only briefly mentioned, with no direct quantitative comparisons. Practical implementation: Details about hyperparameter tuning and computational trade-offs remain unspecified."
+          },
+          "questions": {
+            "value": [
+              "What theoretical guarantees exist for the single-level approximation of the bilevel optimization problem? How does this relate to existing work on bilevel optimization in RLHF?",
+              "How is the 'self-improving mechanism' implemented in practice? What specific feedback loops or exploration strategies are used to refine alignment without preference oracles?",
+              "The paper claims 'no additional overhead during model update phase'—what is the exact computational complexity comparison with DPO and other methods?",
+              "Are the experimental results reproducible? What specific datasets and evaluation protocols were used for the 11.6% win rate improvement and 3.6-point reward increase?"
+            ]
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 4
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_1",
+        "strictness": 1,
+        "review": {
+          "summary": {
+            "value": "This paper introduces SAIL, a self-improving efficient online alignment framework for large language models (LLMs). SAIL addresses challenges in online reinforcement learning from human feedback (RLHF) by formulating alignment as a bilevel optimization problem, reducing it to a computationally efficient single-level method. It enables continuous alignment through online exploration, mitigates distribution shift, and reduces reliance on preference oracles. The authors demonstrate significant performance gains in win rate and evaluation rewards compared to state-of-the-art methods."
+          },
+          "strengths": {
+            "value": "The paper presents a novel framework for online RLHF, addressing critical challenges like distribution shift and preference oracle dependency. The unified bilevel optimization formulation is theoretically grounded, and the proposed single-level reduction offers computational efficiency. The experiments show measurable improvements, and the self-improvement mechanism introduces a promising direction for reducing human supervision. The clarity of the problem statement and contributions is strong, with well-structured figures and logical flow."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed comparisons with baseline methods beyond the claimed metrics (e.g., win rate and rewards). The experimental setup is not fully described (e.g., datasets, hyperparameters, baselines). The theoretical analysis of convergence or guarantees is superficial, and the self-improvement mechanism's implementation details are vague. The figure caption is truncated, limiting interpretation of the results. The paper also does not address potential limitations of the bilevel formulation or scalability to larger models."
+          },
+          "questions": {
+            "value": [
+              "How does SAIL explicitly mitigate distribution shift compared to prior work like PARL? What metrics or ablation studies validate this?",
+              "What specific datasets and baselines were used in the experiments? Are the results reproducible with standard benchmarks?",
+              "How is the 'self-improvement mechanism' implemented? Does it rely on any implicit assumptions about the environment or data distribution?",
+              "What are the exact computational costs of SAIL compared to DPO or other methods? Are there trade-offs in training time or resource usage?",
+              "How does the paper handle the challenge of preference oracle dependency in real-world scenarios where human feedback is sparse or noisy?"
+            ]
+          },
+          "rating": {
+            "value": 8
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_5",
+        "strictness": 5,
+        "review": {
+          "summary": {
+            "value": "This paper introduces SAIL, a method for online alignment of large language models (LLMs) framed as a bilevel optimization problem. By reducing this to a computationally efficient single-level formulation, SAIL aims to address distribution shift issues and reduce reliance on preference oracles. The approach claims performance gains over existing methods, including a 11.6% improvement in win rate and 3.6-point increase in evaluation rewards."
+          },
+          "strengths": {
+            "value": "The paper presents a novel theoretical framework for online RLHF, addressing critical challenges like distribution shift and preference oracle dependency. The connection to bilevel optimization and DPO is well-reasoned, and the proposed self-improvement mechanism shows promise for real-world applicability. The experimental claims are substantial, and the paper's structure is logically organized with clear contributions."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed experimental validation, such as specific baselines, ablation studies, or comparisons to recent online RLHF methods like PARL or ECO. The theoretical analysis of the single-level reduction is not fully rigorous, and the computational efficiency claims are not empirically supported. The figure and references are incomplete, and the self-improvement mechanism's mechanics are under-specified."
+          },
+          "questions": {
+            "value": [
+              "How does SAIL compare to existing online RLHF methods like PARL (Chakraborty et al., 2023) or ECO (Guo et al., 2024a) in terms of performance and computational cost?",
+              "What are the exact details of the 'self-improvement mechanism' and how does it reduce reliance on preference oracles? Are there ablation studies demonstrating its effectiveness?",
+              "The paper claims 'no additional overhead during model update phase'—what specific metrics (e.g., FLOPs, training time) support this assertion?",
+              "The experimental results mention 'multiple datasets' but lack specifics. Which datasets were used, and how do they relate to real-world scenarios?",
+              "How is the 'provable guarantee' of convergence derived? Are there theoretical bounds or empirical validation of this claim?"
+            ]
+          },
+          "rating": {
+            "value": 3
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 2
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      }
+    ]
+  },
+  "04RGjODVj3": {
+    "paper_id": "04RGjODVj3",
+    "reviews": [
+      {
+        "reviewer_id": "reviewer_2",
+        "strictness": 2,
+        "review": {
+          "summary": {
+            "value": "The paper proposes HyperEEGNet, a novel architecture combining HyperNetworks with EEGNet to adaptively generate weights for motor imagery classification using resting-state EEG data. It addresses the challenge of within- and across-user generalization by leveraging underutilized resting-state data, demonstrating comparable performance to EEGNet on a small dataset and improved generalization with larger datasets."
+          },
+          "strengths": {
+            "value": "Originality: Introduces HyperNetworks for adaptive weight generation in EEG decoding, a novel approach to leverage resting-state data. Quality: The method addresses a critical challenge in BCIs (generalization across users/sessions) with a structured architecture. Clarity: The paper is well-organized, with clear problem formulation and motivation. Significance: Demonstrates potential for faster user calibration and edge computing feasibility, which are important for real-world BCI deployment."
+          },
+          "weaknesses": {
+            "value": "The experimental validation is incomplete. The paper lacks detailed metrics (e.g., accuracy, F1 scores) and comparisons with state-of-the-art methods. The integration of HyperNetworks into EEGNet is not sufficiently explained, with minimal details on how resting-state data informs weight generation. The analysis of resting-state connectivity (e.g., coherence, PLV) is superficial, and the paper does not address how these features are mapped to the model's adaptive weights. The claim about reduced memory requirements is unsupported by empirical evidence."
+          },
+          "questions": {
+            "value": [
+              "How exactly are the HyperNetworks trained to generate task-specific weights from resting-state data? What is the input to the HyperNetwork, and how is it derived from the resting-state EEG?",
+              "What ablation studies were conducted to validate the necessity of resting-state data? How does the model perform without it?",
+              "The paper mentions 'robust representations' but does not provide quantitative analysis of cross-session or cross-user performance. Can the authors share detailed results on these scenarios?",
+              "How is the computational efficiency (e.g., model size, inference time) of HyperEEGNet compared to EEGNet? The claim about edge computing feasibility requires empirical support.",
+              "The spectral connectivity analysis (coherence, PLV) is mentioned but not elaborated. How are these features integrated into the model, and what is their contribution to performance?"
+            ]
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_1",
+        "strictness": 1,
+        "review": {
+          "summary": {
+            "value": "This paper introduces HyperEEGNet, an architecture combining HyperNetworks (HNs) with EEGNet to generate adaptive weights for motor imagery (MI) classification using resting-state EEG data. The approach aims to improve generalization across users and sessions by leveraging resting-state features, demonstrating comparable performance to EEGNet on a small dataset and improved generalization on a larger one."
+          },
+          "strengths": {
+            "value": "The paper presents a novel application of HyperNetworks in EEG-based BCI systems, addressing the underutilization of resting-state EEG data. The focus on cross-user and cross-session generalization is significant for real-world BCI deployment. The experimental validation on both small (9 participants) and large (33 participants) datasets shows promise, and the potential for edge computing applications adds practical relevance. The work opens new directions for faster calibration and reduced computational demands."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed technical descriptions of how HyperEEGNet integrates HNs with EEGNet, leaving the mechanism of adaptive weight generation unclear. The resting-state data processing (e.g., coherence/PLV features) is not explicitly tied to the model's architecture. Experiments on the larger dataset (33 participants) are not sufficiently detailed to confirm generalization claims. The comparison to EEGNet is superficial, and ablation studies are missing to isolate the contribution of resting-state data. The paper also does not address potential limitations of using resting-state data (e.g., variability in baseline activity)."
+          },
+          "questions": {
+            "value": "1. How exactly does the HyperNetwork generate adaptive weights based on resting-state data? What specific features from the resting-state EEG are used as inputs to the HN?\n2. The paper mentions using coherence and PLV for connectivity analysis but does not explain how these features are incorporated into HyperEEGNet. Are they used as input features or as part of the training objective?\n3. What ablation studies were conducted to verify the necessity of resting-state data for performance improvements? How does the model perform without it?\n4. The results on the 33-participant dataset are promising, but the paper lacks statistical significance tests (e.g., p-values) or comparisons to state-of-the-art methods beyond EEGNet.\n5. How does the model handle variability in resting-state data across participants, given that baseline brain activity can differ significantly?"
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_3",
+        "strictness": 3,
+        "review": {
+          "summary": {
+            "value": "This paper introduces HyperEEGNet, a novel architecture combining HyperNetworks (HNs) with EEGNet to adaptively generate weights for motor imagery (MI) classification using resting-state EEG data. The approach aims to improve generalization across users and sessions by leveraging underutilized resting-state data, demonstrating comparable performance to EEGNet on a 9-participant dataset and better scalability with larger datasets."
+          },
+          "strengths": {
+            "value": "The paper addresses a relevant problem in BCIs by leveraging resting-state EEG data, which is underutilized in MI decoding. The integration of HyperNetworks for adaptive weight generation is novel and aligns with recent trends in meta-learning and model adaptation. The experiments show promising results in cross-user and cross-session scenarios, and the paper highlights practical benefits like reduced memory requirements for edge computing. The clarity of the problem statement and the motivation for using resting-state data are strong."
+          },
+          "weaknesses": {
+            "value": "The paper lacks rigorous comparisons with state-of-the-art methods, such as other transfer learning approaches or models that utilize resting-state data. The dataset sizes are small (e.g., 9 participants for the BNCI dataset), which limits the statistical significance of the results. The HyperEEGNet architecture is not sufficiently detailed, making it difficult to assess how HNs specifically contribute to the performance gains. Additionally, the theoretical justification for using coherence and PLV in resting-state connectivity analysis is incomplete, and the paper does not address potential limitations of these measures."
+          },
+          "questions": {
+            "value": "1. How does HyperEEGNet explicitly leverage resting-state data during training, and what mechanisms ensure that the adaptive weights capture user-specific patterns? 2. Why was the BNCI 2014 IIa dataset chosen for the 9-participant experiments, and how does its preprocessing compare to the larger dataset? 3. Are there ablation studies demonstrating the necessity of HyperNetworks for the observed performance improvements? 4. How does the paper address the challenge of BCI illiteracy, given that resting-state data may not capture task-related neural signals? 5. What are the specific computational advantages of HyperEEGNet for edge computing, and how do these compare to other lightweight models?"
+          },
+          "rating": {
+            "value": 5
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 2
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      }
+    ]
+  },
+  "04qx93Viwj": {
+    "paper_id": "04qx93Viwj",
+    "reviews": [
+      {
+        "reviewer_id": "reviewer_3",
+        "strictness": 3,
+        "review": {
+          "summary": {
+            "value": "This paper provides a comprehensive assessment of the environmental impact of developing and training large language models (LLMs), including hardware manufacturing, model development, and training phases. The authors measure CO2 emissions, water consumption, and power usage across multiple model sizes, highlighting that model development accounts for ~50% of the total environmental impact. They emphasize the need for transparency in reporting these metrics and discuss the implications for grid-scale energy planning."
+          },
+          "strengths": {
+            "value": "The paper's originality lies in its holistic approach, covering often-overlooked aspects like hardware manufacturing and model development, which are rarely disclosed by model developers. The methodology is robust, with detailed time-series power consumption data and adherence to standardized metrics (e.g., GHG Protocol). The significance is high, addressing a critical gap in AI sustainability. Clarity is strong, with clear motivation and contextualization of findings relative to prior work."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed methodological specifics for calculating embodied carbon and water usage, relying on references without sufficient explanation. The scope is limited to the authors' own models, reducing generalizability. Experimental validation of assumptions (e.g., regional carbon intensity, water efficiency) is insufficient. The paper also does not address mitigation strategies or compare its findings to other studies in depth."
+          },
+          "questions": {
+            "value": "1. How were embodied carbon and water consumption calculated, and what assumptions were made? 2. Were regional variations in energy sources or water availability explicitly accounted for? 3. How do the authors reconcile their findings with prior studies that assume constant GPU power draw? 4. What steps can model developers take to reduce the environmental impact of model development? 5. How might the results differ if the study included models from other organizations?"
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_2",
+        "strictness": 2,
+        "review": {
+          "summary": {
+            "value": "This paper provides a comprehensive assessment of the environmental impact of developing large language models (LLMs), including hardware manufacturing, model development, training, and inference. The authors estimate CO₂ emissions and water consumption for their OLMo series of models, highlighting that model development accounts for ~50% of the total impact. They also emphasize the variability in power consumption during training and call for greater industry transparency."
+          },
+          "strengths": {
+            "value": "The paper addresses a critical and under-researched area by expanding the scope of environmental impact analysis beyond training to include development, hardware manufacturing, and inference. The methodology introduces granular power consumption measurements at sub-second intervals, improving accuracy over prior work. The transparency in reporting upstream (embodied carbon/water) and downstream (inference) impacts is novel. The work underscores the need for industry-wide accountability, which aligns with broader societal and scientific concerns about AI sustainability."
+          },
+          "weaknesses": {
+            "value": "The methodology section is incomplete, leaving critical details about how CO₂ and water usage were calculated (e.g., assumptions about regional carbon intensity, water source efficiency) unclear. The claim that model development accounts for 50% of emissions lacks detailed breakdowns or comparisons to prior studies. The paper does not address how regional differences in energy mix or water availability might affect their estimates. Additionally, the environmental impact of proprietary models (not discussed) remains unexplored, limiting generalizability."
+          },
+          "questions": {
+            "value": "1. How were the embodied carbon and water consumption estimates derived, and what data sources or assumptions were used? 2. What specific metrics were used to quantify the 50% contribution of model development, and how do these compare to other studies? 3. How does the paper account for variations in regional carbon intensity and water scarcity in its calculations? 4. What are the limitations of the water efficiency claims for the data center, and how might these affect the water usage estimates? 5. How do the authors reconcile the variability in power consumption during training with their overall environmental impact conclusions?"
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 4
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 4
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_4",
+        "strictness": 4,
+        "review": {
+          "summary": {
+            "value": "This paper provides a comprehensive assessment of the environmental impact of developing large language models (LLMs), including hardware manufacturing, model development, and training. The authors estimate carbon emissions (493 metric tons) and water consumption (2.769 million liters) for a series of models with up to 13 billion parameters, highlighting that model development accounts for ~50% of the total impact. They also analyze power consumption fluctuations during training and advocate for greater transparency in environmental reporting."
+          },
+          "strengths": {
+            "value": "The paper's originality lies in its holistic approach, addressing under-reported aspects like model development and water usage, which are typically omitted by other studies. The methodology is rigorous, with sub-second power consumption measurements and regional carbon intensity considerations. The significance is high, as it underscores the environmental costs of AI development and calls for industry-wide transparency. The clarity of the abstract and introduction effectively contextualizes the problem and contributions."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed methodological specifics for calculating embodied carbon and water consumption, relying on references without sufficient elaboration. The claim that model development accounts for 50% of emissions is not thoroughly validated with comparative data against prior works. The analysis of power consumption fluctuations (15-85% of max draw) is based on limited data, and the paper does not address potential biases in estimating downstream inference impacts. Additionally, the methodology section appears incomplete, hindering reproducibility."
+          },
+          "questions": {
+            "value": [
+              "How were embodied carbon and water consumption calculated, and what data sources were used for these estimates?",
+              "What specific metrics or benchmarks were used to validate the 50% development impact claim compared to prior studies?",
+              "Can the authors provide more details on the sub-second power consumption measurements and their calibration methods?",
+              "How were regional carbon intensity factors applied, and what assumptions were made for areas without explicit data?",
+              "What limitations exist in the estimation of downstream inference costs, and how might these affect the paper's conclusions?"
+            ]
+          },
+          "rating": {
+            "value": 5
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 4
+          }
+        }
+      }
+    ]
+  },
+  "06B23UkNid": {
+    "paper_id": "06B23UkNid",
+    "reviews": [
+      {
+        "reviewer_id": "reviewer_2",
+        "strictness": 2,
+        "review": {
+          "summary": {
+            "value": "The paper proposes MV-CLAM, a framework that integrates 2D and 3D molecular representations into a unified text token space using a novel multi-querying transformer (MQ-Former). The method addresses limitations of prior work by enabling simultaneous alignment of multiple molecular views, improving molecule-text retrieval, captioning, and zero-shot tasks."
+          },
+          "strengths": {
+            "value": "The paper tackles a relevant problem in molecular modeling by addressing the limitations of single-view alignment. The MQ-Former architecture introduces a shared self-attention mechanism for cross-modal projection, which is conceptually novel. The experiments demonstrate improvements in key tasks, and the framework's potential for zero-shot applications is promising. The paper is well-structured and contextualizes its contributions within existing literature."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed comparisons with existing methods like MolCA and 3D-MoLM, which also use cross-modal alignment. The MQ-Former's architecture is under-described, with insufficient explanation of how the shared self-attention layer operates. Experimental results are not thoroughly validated (e.g., no ablation studies, limited baseline comparisons). The claims of 'state-of-the-art performance' are not substantiated with specific metrics or statistical significance tests."
+          },
+          "questions": {
+            "value": [
+              "How does MQ-Former differ from the Q-Former architecture used in prior works (e.g., MolCA, 3D-MoLM)? What are the key innovations?",
+              "What specific metrics (e.g., Recall@K, BLEU) demonstrate superiority over baselines in molecule-text retrieval and captioning?",
+              "Can the authors provide ablation studies to validate the necessity of the shared self-attention layer and multi-view alignment?",
+              "How does the framework handle computational trade-offs compared to single-view approaches (e.g., training time, memory usage)?",
+              "What are the limitations of the current approach (e.g., scalability to larger molecules, robustness to noisy data)?"
+            ]
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_1",
+        "strictness": 1,
+        "review": {
+          "summary": {
+            "value": "This paper introduces MV-CLAM, a framework that integrates 2D and 3D molecular structures into a unified text representation using a novel multi-querying transformer (MQ-Former). The method addresses limitations of prior work by aligning multiple molecular modalities simultaneously, aiming to improve molecule-text retrieval, captioning, and zero-shot tasks. The MQ-Former architecture employs shared self-attention layers to consolidate molecular embeddings into a universal token."
+          },
+          "strengths": {
+            "value": "The paper presents a novel approach to cross-modal alignment in molecular language modeling, addressing the gap of single-view limitations in existing methods. The MQ-Former design introduces a creative solution for simultaneous 2D/3D alignment, which could enhance interpretability and efficiency. The experimental results on molecule-text tasks and zero-shot editing suggest practical value. The paper also highlights computational efficiency gains, which is significant for large-scale applications."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed comparisons with state-of-the-art methods like Q-Former or contrastive learning frameworks, making it hard to assess the novelty and efficacy of MQ-Former. The experimental section appears incomplete, with no specific metrics or ablation studies provided. The claim of 'state-of-the-art performance' is unsubstantiated without baseline comparisons. Additionally, the paper does not thoroughly explain how the shared self-attention layer avoids conflicts between 2D/3D embeddings or address potential scalability issues."
+          },
+          "questions": {
+            "value": "1. What specific metrics (e.g., retrieval accuracy, captioning BLEU scores) were used to demonstrate state-of-the-art performance? 2. How does MQ-Former compare to existing methods like Q-Former or contrastive learning frameworks in terms of alignment quality? 3. Are there ablation studies showing the contribution of the shared self-attention layer versus separate alignment modules? 4. What is the basis for the 'over 50% reduction in training time' claim? 5. How does the framework handle discrepancies between 2D/3D molecular representations during cross-modal alignment?"
+          },
+          "rating": {
+            "value": 6
+          },
+          "confidence": {
+            "value": 4
+          },
+          "soundness": {
+            "value": 3
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "reviewer_id": "reviewer_3",
+        "strictness": 3,
+        "review": {
+          "summary": {
+            "value": "The paper proposes MV-CLAM, a framework that integrates 2D and 3D molecular representations into a unified text token using a novel multi-querying transformer (MQ-Former). The approach addresses challenges in multi-modal molecular-text alignment by employing a shared self-attention layer to consolidate embeddings, aiming to improve molecule-text retrieval, captioning, and zero-shot tasks."
+          },
+          "strengths": {
+            "value": "The paper tackles a relevant problem in molecular-language modeling by addressing multi-modal alignment limitations. The MQ-Former architecture introduces a novel cross-modal projector for unified embeddings, which could enhance interpretability. The motivation is well-justified, and the potential applications in drug discovery and chemical analysis are significant. The work contributes to the growing field of integrating molecular data with LLMs."
+          },
+          "weaknesses": {
+            "value": "The paper lacks detailed experimental comparisons with state-of-the-art methods like GIT-Mol or MolLM, making it hard to assess the claimed improvements. The computational efficiency claims (e.g., 'reduces training time by more than half') are unsupported by quantitative data. The MQ-Former mechanism is under-explained, and ablation studies are missing. The zero-shot molecule editing results are not thoroughly validated with statistical significance or baseline comparisons."
+          },
+          "questions": {
+            "value": "1. How does MQ-Former differ from existing cross-modal models like Q-Former in terms of architecture and training? 2. What specific metrics (e.g., F1, BLEU) were used to evaluate captioning and retrieval tasks? 3. Are the computational efficiency claims based on empirical measurements or theoretical analysis? 4. How were 2D and 3D inputs preprocessed, and what features were extracted? 5. What baselines were used for zero-shot molecule editing, and how do the results compare?"
+          },
+          "rating": {
+            "value": 5
+          },
+          "confidence": {
+            "value": 3
+          },
+          "soundness": {
+            "value": 2
+          },
+          "presentation": {
+            "value": 3
+          },
+          "contribution": {
+            "value": 3
+          }
+        }
+      }
+    ]
+  }
+}
