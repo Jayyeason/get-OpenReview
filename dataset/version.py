@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-从 OpenReview 抽取 ICLR 2025 的完整评审交互数据。
+从 OpenReview 抽取 ICLR 2025 的完整评审交互数据（带速率限制与断点续跑）。
 
-结构（每篇论文一个 JSON 文件，文件名为 <forum>.json）：
+输出（每篇论文一个 JSON 文件，文件名为 <forum>.json）：
 
 {
   "forum": "zxg6601zoc",
@@ -12,7 +12,7 @@
   "title": "...",
   "abstract": "...",                 # 摘要
   "decision": "Accept|Reject|Withdrawn|null",  # 尽力从事件中判定
-  "rebuttal_chain": {                # ★ 原 per_reviewer
+  "rebuttal_chain": {                # 每位评审一条链
     "Reviewer_XXXX": [
       {
         "time": "...ISO...",
@@ -29,9 +29,8 @@
     ],
     "Reviewer_YYYY": [ ... ]
   },
-  "other_review": [                  # ★ 原 global
-    # 不属于任何具体 reviewer 链的事件：meta_review, decision,
-    # 对整个 forum 的 general comment 等
+  "other_review": [                  # 不属于任何具体 reviewer 链的事件
+    # meta_review, decision, general comment 等
   ]
 }
 """
@@ -39,34 +38,94 @@
 import json
 import os
 import re
+import time
 from typing import List, Dict, Any, Tuple, Optional
-
 from datetime import datetime, timezone
+from collections import deque
 
 import openreview
 from tqdm import tqdm
 
-
 # ========== 配置区域 ==========
 VENUE_ID = "ICLR.cc/2025/Conference"
 BASEURL = "https://api2.openreview.net"
-
 OUT_DIR = "./data/iclr2025_forums"  # 每篇论文一个 <forum>.json
+
+# ---- 速率限制 / 重试配置 ----
+MAX_CALLS_PER_MIN = 180          # 每 60s 最多调用数（低于服务端 200 的上限，留余量）
+MAX_RETRIES = 8                  # 单次 API 调用最大重试次数
+BASE_BACKOFF_SEC = 1.0           # 指数退避起始等待
+REQUEST_LOG_EVERY = 200          # 打印跳过/处理进度频率
+
+# 断点续跑：当输出 JSON 文件已存在且非空时，默认跳过
+OVERWRITE_EXISTING = False
 # ==============================
 
 
+# ---- 简单滑窗限速（全局）----
+_CALL_TIMES = deque()  # 记录每次 API 调用的时间点（monotonic 秒）
+
+def _throttle():
+    """在每次 API 调用前调用，保证 60s 内不超过 MAX_CALLS_PER_MIN 次。"""
+    now = time.monotonic()
+    window = 60.0
+    # 清理过期时间戳
+    while _CALL_TIMES and (now - _CALL_TIMES[0]) > window:
+        _CALL_TIMES.popleft()
+    if len(_CALL_TIMES) >= MAX_CALLS_PER_MIN:
+        # 等到最早一次调用滚出 60s 窗口
+        sleep_sec = window - (now - _CALL_TIMES[0]) + 0.01
+        if sleep_sec > 0:
+            time.sleep(sleep_sec)
+    _CALL_TIMES.append(time.monotonic())
+
+
+def _sleep_from_rate_limit_msg(msg: str) -> float:
+    """
+    解析 OpenReview 429 信息中的推荐等待秒数，没有则给一个保守等待。
+    示例信息：
+      'Too many requests: ... Please try again in 4 seconds (2025-11-13-5800379)'
+    """
+    m = re.search(r"try again in\s+(\d+)\s+seconds", msg, re.IGNORECASE)
+    if m:
+        return max(1.0, float(m.group(1)) + 0.5)
+    # 没有明确建议时，给一个温和等待
+    return 4.0
+
+
+def api_call(fn, *args, **kwargs):
+    """
+    为 openreview 客户端方法提供统一的：限速 + 自动重试（429/瞬时错误）。
+    """
+    last_exc = None
+    backoff = BASE_BACKOFF_SEC
+    for attempt in range(1, MAX_RETRIES + 1):
+        _throttle()
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            last_exc = e
+            msg = str(e)
+            # 429 限流
+            if ("Too many requests" in msg) or ("RateLimitError" in msg) or ("status': 429" in msg) or ("status\": 429" in msg):
+                wait = _sleep_from_rate_limit_msg(msg)
+            else:
+                # 其它瞬时错误：指数退避
+                wait = min(60.0, backoff)
+                backoff *= 1.6
+            time.sleep(wait)
+    # 多次重试仍失败，抛出
+    raise last_exc
+
+
+# ========== OpenReview 基本封装 ==========
 def build_client() -> "openreview.api.OpenReviewClient":
-    """构建 OpenReview v2 client（匿名访问，不带用户名密码）"""
-    client = openreview.api.OpenReviewClient(
-        baseurl=BASEURL
-    )
-    return client
+    return openreview.api.OpenReviewClient(baseurl=BASEURL)
 
 
 def get_submission_name(client: "openreview.api.OpenReviewClient",
                         venue_id: str) -> str:
-    """从 venue group 里拿 submission_name，拿不到就退回 'Submission'"""
-    venue_group = client.get_group(venue_id)
+    venue_group = api_call(client.get_group, venue_id)
     content = getattr(venue_group, "content", {}) or {}
     sub_field = content.get("submission_name", {})
     if isinstance(sub_field, dict):
@@ -75,11 +134,6 @@ def get_submission_name(client: "openreview.api.OpenReviewClient",
 
 
 def extract_title_from_content(content: Dict[str, Any]) -> str:
-    """
-    兼容一下不同 schema 的 title：
-      - 新版：{"title": {"value": "xxx"}}
-      - 有些情况：{"title": "xxx"}
-    """
     if not content:
         return ""
     t = content.get("title", "")
@@ -91,10 +145,6 @@ def extract_title_from_content(content: Dict[str, Any]) -> str:
 
 
 def extract_abstract_from_content(content: Dict[str, Any]) -> Optional[str]:
-    """
-    尽力从 submission.content 取摘要。常见键：
-      abstract / Abstract / paper_abstract / TL;DR / TLDR / tl;dr
-    """
     if not isinstance(content, dict):
         return None
     candidates = ["abstract", "Abstract", "paper_abstract", "tl;dr", "TL;DR", "TLDR"]
@@ -108,12 +158,6 @@ def extract_abstract_from_content(content: Dict[str, Any]) -> Optional[str]:
 
 
 def classify_reply(r: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    把一条 reply 粗分类：评审 / rebuttal / AC comment / meta-review / decision / 其它
-
-    输入 r 是 submission.details['replies'] 里的一个 dict，典型字段：
-      - id, forum, cdate, signatures, invitations, content, replyto, ...
-    """
     invitations: List[str] = r.get("invitations", []) or []
     sigs: List[str] = r.get("signatures", []) or []
     nid: str = r.get("id")
@@ -123,29 +167,19 @@ def classify_reply(r: Dict[str, Any]) -> Dict[str, Any]:
     def endswith_any(suffixes: List[str]) -> bool:
         return any(inv.endswith(sfx) for inv in invitations for sfx in suffixes)
 
-    # 1) 正式评审
     if endswith_any(["Official_Review"]):
         role = "reviewer"
         rtype = "review"
-
-    # 2) Meta-review（AC 总结）
     elif endswith_any(["Meta_Review"]):
         role = "ac"
         rtype = "meta_review"
-
-    # 3) 最终 decision
     elif endswith_any(["Decision"]):
         role = "pc"
         rtype = "decision"
-
-    # 4) 专门的 Rebuttal 表单（如果会议启用）
     elif endswith_any(["Rebuttal"]):
         role = "author"
         rtype = "rebuttal"
-
-    # 5) Comment / Official_Comment / Public_Comment
     elif endswith_any(["Official_Comment", "Comment", "Public_Comment"]):
-        # 根据签名猜是谁
         if any("Authors" in s for s in sigs):
             role = "author"
             rtype = "author_comment"
@@ -158,7 +192,6 @@ def classify_reply(r: Dict[str, Any]) -> Dict[str, Any]:
         else:
             role = "other"
             rtype = "comment"
-
     else:
         role = "other"
         rtype = "other"
@@ -180,25 +213,15 @@ def get_review_versions(
     client: "openreview.api.OpenReviewClient",
     evt_basic: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """
-    对于一条“评审 note”（原始 reply 已被 classify_reply 处理成 evt_basic），
-    构造完整版本序列 v1, v2, ...
-
-    - v1：用原始 reply 的内容（evt_basic），时间 = 原始 cdate
-    - v2+：用 get_note_edits(note_id=...) 返回的各版本快照，时间 = edit.cdate
-    """
     note_id = evt_basic["note_id"]
 
-    # 先尝试拿 edits（可能为空）
     try:
-        edits = client.get_note_edits(note_id=note_id) or []
+        edits = api_call(client.get_note_edits, note_id=note_id) or []
     except Exception as e:
         print(f"[WARN] get_note_edits failed for note {note_id}: {e}")
         edits = []
 
     versions: List[Dict[str, Any]] = []
-
-    # v1 = 原始评审
     versions.append({
         "note_id": note_id,
         "version_index": 1,
@@ -208,7 +231,6 @@ def get_review_versions(
         "content": evt_basic["content"] or {},
     })
 
-    # v2, v3, ... = edit 之后的版本
     if edits:
         edits = sorted(edits, key=lambda e: e.cdate or 0)
         idx_base = 2
@@ -218,7 +240,7 @@ def get_review_versions(
                 "note_id": note.id,
                 "version_index": idx_base + i,
                 "cdate": e.cdate,
-                "replyto": evt_basic["replyto"],  # 评审的 replyto 通常固定为 forum
+                "replyto": evt_basic["replyto"],
                 "signatures": note.signatures or [],
                 "content": note.content or {},
             })
@@ -227,7 +249,6 @@ def get_review_versions(
 
 
 def to_iso_time(ms: int) -> str:
-    """把毫秒时间戳转换成 ISO8601 字符串，UTC 时区"""
     if not ms:
         return None
     dt = datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
@@ -235,10 +256,6 @@ def to_iso_time(ms: int) -> str:
 
 
 def extract_reviewer_short_id(signatures: List[str]) -> Optional[str]:
-    """
-    从 signatures 里抽取 reviewer 的短 id：
-    "ICLR.cc/2025/Conference/Submission7754/Reviewer_8r4h" → "Reviewer_8r4h"
-    """
     sigs = signatures or []
     for s in sigs:
         if "Reviewer" in s:
@@ -249,55 +266,30 @@ def extract_reviewer_short_id(signatures: List[str]) -> Optional[str]:
 def build_per_reviewer_chains(
     events: List[Dict[str, Any]]
 ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]:
-    """
-    把所有事件按 reviewer 分成多条 rebuttal 链。
-
-    输入：同一个 submission 的所有事件（已经有 time_ms / time / replyto 等）
-    输出：
-      - per_reviewer: { "Reviewer_xxx": [events...], ... }
-      - global_events: [events...]   # 没法归到某个 reviewer 的，放这里
-    """
-
-    # 1) 找出所有 root review（version_index == 1 的 review_version）
     review_roots: List[Dict[str, Any]] = [
         e for e in events
         if e.get("event_type") == "review_version"
         and e.get("version_index") == 1
     ]
 
-    # reviewer_id -> list of events
     per_reviewer: Dict[str, List[Dict[str, Any]]] = {}
-    # note_id -> reviewer_id （用于通过 replyto 传播归属）
     note_to_reviewer: Dict[str, str] = {}
 
-    # 1.1 初始化每个 reviewer 的链，并把 root review 放进去
     for root in review_roots:
         short_id = extract_reviewer_short_id(root.get("signatures") or [])
         if not short_id:
             continue
-
-        if short_id not in per_reviewer:
-            per_reviewer[short_id] = []
-
-        per_reviewer[short_id].append(root)
+        per_reviewer.setdefault(short_id, []).append(root)
         note_to_reviewer[root["note_id"]] = short_id
 
-    # 1.2 把同一个 review 的其它版本（v2, v3, ...）也加入各自 reviewer
     for e in events:
         if e.get("event_type") == "review_version":
             nid = e["note_id"]
             rid = note_to_reviewer.get(nid)
-            if rid and e not in per_reviewer[rid]:
+            if rid and e not in per_reviewer.get(rid, []):
                 per_reviewer[rid].append(e)
 
-    # 2) 用 replyto 关系，把非 review 事件，也归到对应 reviewer 链
-
-    # 2.1 构建 note_id -> 事件 的索引（如果需要可以扩展）
-    id_to_event: Dict[str, Dict[str, Any]] = {
-        e["note_id"]: e for e in events if e.get("note_id")
-    }
-
-    # 2.2 通过 replyto 把 note_id 的归属往下传播；多轮直到稳定
+    # 通过 replyto 传播归属
     changed = True
     while changed:
         changed = False
@@ -310,33 +302,27 @@ def build_per_reviewer_chains(
                 note_to_reviewer[nid] = note_to_reviewer[replyto]
                 changed = True
 
-    # 2.3 把非 review 事件按 note_to_reviewer 分配到 per_reviewer
+    # 分配非 review 事件
     for e in events:
         if e.get("event_type") == "review_version":
             continue
         nid = e.get("note_id")
         rid = note_to_reviewer.get(nid)
         if rid:
-            if rid not in per_reviewer:
-                per_reviewer[rid] = []
-            per_reviewer[rid].append(e)
+            per_reviewer.setdefault(rid, []).append(e)
 
-    # 3) 对每个 reviewer 的链按时间排序（若想在同秒内让 review_version 更靠前，可改排序键）
+    # 每条链按时间排序
     for rid, evts in per_reviewer.items():
         evts.sort(key=lambda x: x.get("time_ms") or 0)
 
-    # 4) 剩下没分配到任何 reviewer 的事件 → global
-    assigned_ids = set(
-        ev["note_id"]
+    assigned_ids = {
+        ev.get("note_id")
         for evts in per_reviewer.values()
         for ev in evts
         if ev.get("note_id")
-    )
+    }
 
-    global_events = [
-        e for e in events
-        if e.get("note_id") not in assigned_ids
-    ]
+    global_events = [e for e in events if e.get("note_id") not in assigned_ids]
     global_events.sort(key=lambda x: x.get("time_ms") or 0)
 
     return per_reviewer, global_events
@@ -347,11 +333,9 @@ def _collect_strings_from_content(content: Dict[str, Any]) -> List[str]:
     out = []
     if not isinstance(content, dict):
         return out
-    for k, v in content.items():
-        if isinstance(v, dict) and "value" in v:
-            val = v.get("value")
-            if isinstance(val, str):
-                out.append(val)
+    for _, v in content.items():
+        if isinstance(v, dict) and "value" in v and isinstance(v["value"], str):
+            out.append(v["value"])
         elif isinstance(v, str):
             out.append(v)
         elif isinstance(v, list):
@@ -364,12 +348,7 @@ def _collect_strings_from_content(content: Dict[str, Any]) -> List[str]:
 
 
 def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
-    """
-    优先判断 Withdrawn；否则在 decision 事件与常见字段中搜索。
-    返回：
-      - "Withdrawn" | "Accept" | "Reject" | None
-    """
-    # 1) 撤稿优先
+    # 1) 优先判断 Withdrawn
     for e in events:
         c = e.get("content") or {}
         if "withdrawal_confirmation" in c:
@@ -378,7 +357,7 @@ def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
         if re.search(r"\bwithdraw(n|al|)\b", texts):
             return "Withdrawn"
 
-    # 2) 决策文本（优先扫描 event_type == decision）
+    # 2) 决策文本
     texts = []
     for e in events:
         if e.get("event_type") == "decision":
@@ -393,15 +372,13 @@ def detect_decision_from_events(events: List[Dict[str, Any]]) -> Optional[str]:
                 elif isinstance(v, str):
                     texts.append(v)
 
-    blob = " ".join(texts).lower()
-    if not blob.strip():
+    blob = " ".join(texts).lower().strip()
+    if not blob:
         return None
-
     if re.search(r"\b(accept|oral|spotlight|poster)\b", blob):
         return "Accept"
     if re.search(r"\b(reject|desk\s*reject)\b", blob):
         return "Reject"
-
     return None
 
 
@@ -410,98 +387,120 @@ def main():
     submission_name = get_submission_name(client, VENUE_ID)
     print(f"[INFO] submission_name = {submission_name}")
 
-    # 创建输出目录
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print("[INFO] Loading submissions with replies ...")
-    submissions = client.get_all_notes(
+    # 这一调用内部会做很多请求，无法逐次限速；若此处触发 429，交给 openreview 内部处理。
+    # 我们仍用 api_call 包一层，以便遇到网络瞬时错误时重试。
+    submissions = api_call(
+        client.get_all_notes,
         invitation=f"{VENUE_ID}/-/{submission_name}",
         details="replies"
     )
     print(f"[INFO] Loaded {len(submissions)} submissions")
 
-    for sub in tqdm(submissions, desc="Processing submissions"):
+    skipped = 0
+    processed = 0
+    errors = 0
+
+    for idx, sub in enumerate(tqdm(submissions, desc="Processing submissions")):
         forum_id = sub.forum
-        number = getattr(sub, "number", None)
-        title = extract_title_from_content(sub.content or {})
-        abstract = extract_abstract_from_content(sub.content or {})
+        out_path = os.path.join(OUT_DIR, f"{forum_id}.json")
+        out_tmp = out_path + ".tmp"
 
-        raw_replies = sub.details.get("replies", []) or []
-        events: List[Dict[str, Any]] = []
+        # 断点续跑：已有且非空则跳过
+        if not OVERWRITE_EXISTING and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            skipped += 1
+            if skipped % REQUEST_LOG_EVERY == 0:
+                print(f"[INFO] Skipped {skipped} existing files...")
+            continue
 
-        # 遍历所有 reply，先分类，再展开成事件
-        for r in raw_replies:
-            evt_basic = classify_reply(r)
+        try:
+            number = getattr(sub, "number", None)
+            title = extract_title_from_content(sub.content or {})
+            abstract = extract_abstract_from_content(sub.content or {})
 
-            # 1) 评审：展开为 review_version(v1,v2,...)
-            if evt_basic["type"] == "review":
-                versions = get_review_versions(client, evt_basic)
+            raw_replies = (sub.details.get("replies", []) or [])
+            events: List[Dict[str, Any]] = []
 
-                for v in versions:
-                    ms = v["cdate"] or 0
+            # 分类 + 展开事件
+            for r in raw_replies:
+                evt_basic = classify_reply(r)
+
+                if evt_basic["type"] == "review":
+                    versions = get_review_versions(client, evt_basic)
+                    for v in versions:
+                        ms = v["cdate"] or 0
+                        events.append({
+                            "time": to_iso_time(ms),
+                            "time_ms": ms,
+                            "actor": "reviewer",
+                            "event_type": "review_version",
+                            "version_index": v["version_index"],
+                            "note_id": v["note_id"],
+                            "replyto": v["replyto"],
+                            "signatures": v["signatures"],
+                            "content": v["content"],
+                        })
+                else:
+                    ms = evt_basic["cdate"] or 0
                     events.append({
                         "time": to_iso_time(ms),
                         "time_ms": ms,
-                        "actor": "reviewer",
-                        "event_type": "review_version",
-                        "version_index": v["version_index"],
-                        "note_id": v["note_id"],
-                        "replyto": v["replyto"],
-                        "signatures": v["signatures"],
-                        "content": v["content"],
+                        "actor": evt_basic["role"],       # 'author' / 'ac' / 'reviewer' / 'pc' / 'other'
+                        "event_type": evt_basic["type"],  # 'author_comment' / 'reviewer_comment' / ...
+                        "note_id": evt_basic["note_id"],
+                        "replyto": evt_basic["replyto"],
+                        "signatures": evt_basic["signatures"],
+                        "content": evt_basic["content"],
                     })
 
-            # 2) 其它类型：rebuttal / comment / meta-review / decision ...
+            if not events:
+                record = {
+                    "forum": forum_id,
+                    "number": number,
+                    "title": title,
+                    "abstract": abstract,
+                    "decision": None,
+                    "rebuttal_chain": {},
+                    "other_review": [],
+                }
             else:
-                ms = evt_basic["cdate"] or 0
-                events.append({
-                    "time": to_iso_time(ms),
-                    "time_ms": ms,
-                    "actor": evt_basic["role"],      # 'author' / 'ac' / 'reviewer' / 'pc' / 'other'
-                    "event_type": evt_basic["type"], # 'author_comment' / 'reviewer_comment' / ...
-                    "note_id": evt_basic["note_id"],
-                    "replyto": evt_basic["replyto"],
-                    "signatures": evt_basic["signatures"],
-                    "content": evt_basic["content"],
-                })
+                events.sort(key=lambda e: e.get("time_ms") or 0)
+                per_reviewer, global_events = build_per_reviewer_chains(events)
+                decision = detect_decision_from_events(events)
 
-        # 可能没有任何事件（极少），也写空结构
-        if not events:
-            record = {
-                "forum": forum_id,
-                "number": number,
-                "title": title,
-                "abstract": abstract,
-                "decision": None,
-                "rebuttal_chain": {},   # ★ 改名
-                "other_review": [],     # ★ 改名
-            }
-        else:
-            # 先整体按时间排序（便于 debug）
-            events.sort(key=lambda e: e.get("time_ms") or 0)
+                record = {
+                    "forum": forum_id,
+                    "number": number,
+                    "title": title,
+                    "abstract": abstract,
+                    "decision": decision,
+                    "rebuttal_chain": per_reviewer,
+                    "other_review": global_events,
+                }
 
-            # 构造 per_reviewer 链 + global 事件
-            per_reviewer, global_events = build_per_reviewer_chains(events)
+            # 原子写入：先写 .tmp，再 rename
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_tmp, "w", encoding="utf-8") as f_out:
+                json.dump(record, f_out, ensure_ascii=False, indent=2)
+            os.replace(out_tmp, out_path)
 
-            # 依据所有事件推断接收结果
-            decision = detect_decision_from_events(events)
+            processed += 1
+            if processed % REQUEST_LOG_EVERY == 0:
+                print(f"[INFO] Processed {processed} submissions...")
+        except Exception as e:
+            errors += 1
+            # 清理可能残留的 tmp 文件，避免下次 resume 识别为已完成
+            try:
+                if os.path.exists(out_tmp):
+                    os.remove(out_tmp)
+            except Exception:
+                pass
+            print(f"[ERROR] Failed on forum={forum_id}: {e}")
 
-            record = {
-                "forum": forum_id,
-                "number": number,
-                "title": title,
-                "abstract": abstract,
-                "decision": decision,
-                "rebuttal_chain": per_reviewer,   # ★ 改名
-                "other_review": global_events,    # ★ 改名
-            }
-
-        out_path = os.path.join(OUT_DIR, f"{forum_id}.json")
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as f_out:
-            json.dump(record, f_out, ensure_ascii=False, indent=2)
-
-    print(f"[INFO] Done. Saved {len(submissions)} JSON files under {OUT_DIR}/")
+    print(f"[INFO] Done. Total: {len(submissions)}, processed: {processed}, skipped: {skipped}, errors: {errors}")
+    print(f"[INFO] Saved JSON files under {OUT_DIR}/")
 
 
 if __name__ == "__main__":
