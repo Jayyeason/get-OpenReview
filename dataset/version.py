@@ -8,7 +8,6 @@
 
 {
   "forum": "zxg6601zoc",
-  "number": 1371,
   "title": "...",
   "abstract": "...",                 # 摘要
   "decision": "Accept|Reject|Withdrawn|null",  # 尽力从事件中判定
@@ -49,7 +48,7 @@ from tqdm import tqdm
 # ========== 配置区域 ==========
 VENUE_ID = "ICLR.cc/2025/Conference"
 BASEURL = "https://api2.openreview.net"
-OUT_DIR = "./data/iclr2025_forums"  # 每篇论文一个 <forum>.json
+OUT_DIR = "./data/iclr2025_forum_clear"  # 每篇论文一个 <forum>.json
 
 # ---- 速率限制 / 重试配置 ----
 MAX_CALLS_PER_MIN = 180          # 每 60s 最多调用数（低于服务端 200 的上限，留余量）
@@ -222,28 +221,37 @@ def get_review_versions(
         edits = []
 
     versions: List[Dict[str, Any]] = []
+    root_content = evt_basic["content"] or {}
     versions.append({
         "note_id": note_id,
         "version_index": 1,
         "cdate": evt_basic["cdate"],
         "replyto": evt_basic["replyto"],
         "signatures": evt_basic["signatures"] or [],
-        "content": evt_basic["content"] or {},
+        "content": root_content,
     })
 
     if edits:
         edits = sorted(edits, key=lambda e: e.cdate or 0)
-        idx_base = 2
-        for i, e in enumerate(edits):
+        prev_content = root_content
+        for e in edits:
             note = e.note
+            content = note.content or {}
+            if not content:
+                continue
+            if content == prev_content:
+                continue
             versions.append({
                 "note_id": note.id,
-                "version_index": idx_base + i,
                 "cdate": e.cdate,
                 "replyto": evt_basic["replyto"],
                 "signatures": note.signatures or [],
-                "content": note.content or {},
+                "content": content,
             })
+            prev_content = content
+
+    for i, v in enumerate(versions, start=1):
+        v["version_index"] = i
 
     return versions
 

@@ -216,13 +216,13 @@ class ReviewerAI:
     def build_review_prompt(
         self,
         paper_content: str,
-        max_content_length: int = 10000
+        max_content_length: int = 120000
     ) -> str:
         """构建评审提示词"""
-        
         # 截断论文内容避免过长
         if len(paper_content) > max_content_length:
             paper_content = paper_content[:max_content_length] + "\n\n[论文内容已截断...]"
+            print("已截断论文内容")
         
         # 使用模板填充
         prompt = self.user_prompt_template.format(
@@ -236,7 +236,7 @@ class ReviewerAI:
         paper_content: str,
         strictness: int = 3,
         temperature: float = 0.7,
-        max_tokens: int = 2000
+        max_tokens: int = 5000
     ) -> Dict[str, Any]:
         """生成评审内容
         
@@ -483,19 +483,19 @@ def main():
     
     parser.add_argument(
         '--output',
-        default='qwen3-30B-reviews-234.json',
+        default='qwen3-30B-paper-reviews.json',
         help='输出JSON文件路径（默认: qwen3-30B-reviews.json）'
     )
     
     parser.add_argument(
         '--base-url',
-        default='http://10.176.59.101:8003/v1',
+        default='http://10.176.59.108:8003/v1',
         help='Qwen3-30B-A3B API地址（默认: http://10.176.59.107:8003/v1）'
     )
     
     parser.add_argument(
         '--model',
-        default='qwen3-30b-a3b',
+        default='qwen3-30b-a3b-instruct-2507',
         help='模型名称（默认: qwen3-30b-a3b）'
     )
     

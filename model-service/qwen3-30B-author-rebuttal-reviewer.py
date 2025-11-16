@@ -89,7 +89,7 @@ You must respond with a JSON object in the following format:
 - `rating` must be one of: 1, 3, 5, 6, 8, 10
 - `confidence`, `soundness`, `presentation`, `contribution` must be integers in their respective ranges
 
-You may use <think> tags to organize your thoughts before providing the JSON response. The final JSON object should come after your reasoning."""
+Please respond directly with the JSON object. Do not include any reasoning tags or additional text before or after the JSON."""
 
 SYSTEM_PROMPT_LEVEL_1 = """You are an expert academic reviewer for a top-tier machine learning conference (ICLR).
 
@@ -180,8 +180,8 @@ USER_PROMPT_TEMPLATE = """## Paper Content
 class ReviewerAI:
     def __init__(
         self,
-        base_url: str = "http://10.176.59.101:8003/v1",
-        model_name: str = "qwen3-30b-a3b",
+        base_url: str = "http://10.176.59.108:8003/v1",
+        model_name: str = "qwen3-30b-a3b-instruct-2507",
         prompt_template_path: Optional[str] = None
     ):
         self.client = openai.OpenAI(api_key="EMPTY", base_url=base_url)
@@ -202,8 +202,8 @@ class ReviewerAI:
         self,
         paper_content: str,
         author_rebuttal: str,
-        max_content_length: int = 20000,
-        max_rebuttal_length: int = 5000
+        max_content_length: int = 100000,
+        max_rebuttal_length: int = 15000
     ) -> str:
         if len(paper_content) > max_content_length:
             paper_content = paper_content[:max_content_length] + "\n\n[论文内容已截断...]"
@@ -239,18 +239,7 @@ class ReviewerAI:
             )
             content = response.choices[0].message.content
             content = content.strip()
-            if '<think>' in content.lower():
-                think_patterns = ['</think>', '</Think>', '</THINK>']
-                for pattern in think_patterns:
-                    if pattern.lower() in content.lower():
-                        idx = content.lower().find(pattern.lower())
-                        if idx != -1:
-                            content = content[idx + len(pattern):].strip()
-                            break
-                else:
-                    json_start = content.find('{')
-                    if json_start != -1:
-                        content = content[json_start:]
+            # 移除 markdown 代码块标记
             if content.startswith("```json"):
                 content = content[7:]
             elif content.startswith("```"):
@@ -413,7 +402,7 @@ def main():
     )
     parser.add_argument(
         '--model',
-        default='qwen3-30b-a3b',
+        default='qwen3-30b-a3b-instruct-2507',
         help='模型名称'
     )
     parser.add_argument(
