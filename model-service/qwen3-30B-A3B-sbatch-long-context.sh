@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #SBATCH --partition=fnlp-4090d
-#SBATCH --nodelist=fnlp-4090-59108
-#SBATCH --job-name=qwen3_30b_a3b_vllm_service_8gpu
+##SBATCH --nodelist=fnlp-4090-59101
+#SBATCH --job-name=qwen3_30b_a3b_vllm_service_4gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:8
-#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:2
+#SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=4G
 #SBATCH --output=qwen3-30b-a3b-vllm-slurm-long-context.log
 ###SBATCH --kill-on-bad-exit=1
@@ -38,12 +38,12 @@ echo "=========================================="
 MODEL_PATH="/remote-home1/share/models/Qwen/Qwen3-30B-A3B-Instruct-2507"
 PORT=8003
 HOST="0.0.0.0"
-TENSOR_PARALLEL_SIZE=8
+TENSOR_PARALLEL_SIZE=4
 MAX_MODEL_LEN=131072  # 方案2：平衡配置（4倍之前的设置，模型原生支持262144）
 GPU_MEMORY_UTIL=0.70  # 降低显存利用率给KV Cache留更多空间
 
 # 启动 vLLM 服务
-echo "启动 Qwen3-30B-A3B-Instruct-2507 (MoE) vLLM 服务 - 8 GPU配置..."
+echo "启动 Qwen3-30B-A3B-Instruct-2507 (MoE) vLLM 服务 - 4 GPU配置..."
 echo "模型路径: ${MODEL_PATH}"
 echo "监听地址: ${HOST}:${PORT}"
 echo "GPU数量: ${TENSOR_PARALLEL_SIZE}"

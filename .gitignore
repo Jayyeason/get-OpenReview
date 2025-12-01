@@ -10,3 +10,7 @@ __pycache__/
 **/*.log
 # 忽略所有以 data 结尾的文件夹
 **/*data
+# 忽略openreview的bug
+**bug_get
+# 忽略 环境变量
+**.env
