@@ -1,0 +1,102 @@
+# ============================================================
+# Qwen3-8B ICLR2025 DPO (lenient + moderate + strict, 单 LoRA)
+# 放到 configs/dpo_qwen3_8b_iclr2025.yaml
+# 运行示例：
+#   llamafactory-cli train configs/dpo_qwen3_8b_iclr2025.yaml
+# ============================================================
+
+# ------------------ 模型与 LoRA 设置 ------------------
+model_name_or_path: /remote-home1/bwli/get_open_review/train/Qwen3-4B-Instruct-2507  # 本地模型路径（4B 模型，显存占用约减少 50%）
+adapter_name_or_path: null
+
+template: qwen          # Qwen 系模型统一用 qwen 模板
+finetuning_type: lora   # 只做 LoRA
+
+# LoRA 配置（进一步降低 rank 和 alpha 以节省显存）
+lora_rank: 8         # 从 32 降到 8，大幅减少 LoRA 参数量和显存占用
+lora_alpha: 16       # 从 64 降到 16，保持 alpha/rank = 2 的比例
+lora_dropout: 0.05
+# 如果你想覆盖默认的 target，可以显式写：
+# lora_target:
+#   - q_proj
+#   - k_proj
+#   - v_proj
+#   - o_proj
+#   - gate_proj
+#   - up_proj
+#   - down_proj
+
+# QLoRA（4bit 量化加载基座）- 可以节省约 50-75% 的显存
+# DPO 训练 + 16k 序列长度需要启用量化
+quantization_bit: 4
+# 量化类型：nf4（默认，推荐）或 fp4
+# quantization_type: nf4
+# 双量化：True（默认，进一步节省显存）或 False
+# double_quantization: true
+
+# ------------------ 训练类型：DPO ------------------
+stage: dpo        # 告诉 LLaMA-Factory 这是 DPO 阶段
+do_train: true
+do_eval: false    # 如需验证集可以开 eval，这里先关掉
+
+# DPO 超参（不同版本字段名略有差异，beta 通常默认 0.1）
+# 如果你的版本有 dpo_beta / pref_beta 等字段，可以解开下面注释手动设定：
+# dpo_beta: 0.1
+
+# ------------------ 数据集配置 ------------------
+# 你用脚本生成的 all 桶：iclr_dpo_all.jsonl
+dataset: iclr_dpo_all
+dataset_dir: /remote-home1/bwli/get_open_review/train/dpo_8b_iclr2025/data/dpo_data
+
+# 训练时的最大长度：
+# - 使用 8k token 长度（DPO 会将 chosen/rejected 拼接，实际总长度是 16k）
+# - DPO 训练显存占用大（需要同时处理 chosen/rejected），通过降低 batch size 和序列长度来节省显存
+# - 注意：cutoff_len 是单个响应的最大长度，DPO 训练时总长度 = cutoff_len * 2
+cutoff_len: 8192
+
+# DPO/pref 任务通常不需要 pack 到同一序列
+packing: false
+
+# 如果你想限制样本数，可以设置；不限制就注释掉：
+# max_samples: 6000   # 你预估的是 ~6000 对样本
+
+# ------------------ 训练超参数 ------------------
+# 这里给一套比较稳的默认值，你可以视显存和显卡数量再调大 batch / 步数
+
+output_dir: /remote-home1/bwli/get_open_review/train/dpo_8b_iclr2025/checkpoints/qwen3-4b-dpo-iclr2025-8k
+logging_dir: /remote-home1/bwli/get_open_review/train/dpo_8b_iclr2025/logs/qwen3-4b-dpo-iclr2025-8k
+logging_steps: 10
+report_to: "tensorboard"   # 如果想用 tensorboard 看曲线
+
+num_train_epochs: 3
+per_device_train_batch_size: 1     # DPO 显存占用大，降低到 1
+gradient_accumulation_steps: 32    # 进一步增加梯度累积保持有效 batch size: 1*8*32=256
+learning_rate: 5.0e-6
+weight_decay: 0.0
+
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+
+gradient_checkpointing: true
+bf16: true          # H200 / 4090 上一般用 bf16；如果不支持再改成 fp16
+fp16: false
+
+# 优化器
+# 使用 8bit 优化器可以节省约 30-50% 显存（需要 bitsandbytes）
+# 如果 bitsandbytes 未安装，脚本会自动安装
+optim: adamw_8bit
+
+# ------------------ 日志 & 保存 ------------------
+# logging_steps 已在第62行定义，这里不再重复
+save_steps: 500
+save_total_limit: 3
+
+eval_strategy: "no"   # 如果后面加 dev 集，可以改成 "steps" 或 "epoch"
+# report_to 已在第63行定义，这里不再重复
+
+# ------------------ 生成相关（可选） ------------------
+# 只影响 eval / debug 时的自动生成，不影响 DPO loss 本身
+# 允许在 eval 时跑一点生成看看效果时用
+max_new_tokens: 1024
+temperature: 0.7
+top_p: 0.9
